@@ -55,8 +55,10 @@ export default class Parser extends Tokenizer {
   }
 
   loadAllPlugins() {
+    const pluginNames = Object.keys(plugins).filter((name) => name !== "flow" && name !== "estree");
+    // ensure estree loads first
+    pluginNames.unshift("estree");
     // ensure flow plugin loads last
-    const pluginNames = Object.keys(plugins).filter((name) => name !== "flow");
     pluginNames.push("flow");
 
     pluginNames.forEach((name) => {
