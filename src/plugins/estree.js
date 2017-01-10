@@ -11,7 +11,7 @@ pp.estreeParseRegExpLiteral = function ({ pattern, flags }) {
     // In environments that don't support these flags value will
     // be null as the regex can't be represented natively.
   }
-  let node = this.parseLiteral(regex, "Literal");
+  let node = this.estreeParseLiteral(regex);
   node.regex = { pattern, flags };
 
   return node;

@@ -88,11 +88,8 @@
                   "column": 13
                 }
               },
-              "extra": {
-                "rawValue": "/\\/.*\\/i/",
-                "raw": "/.*/i"
-              },
-              "value": "/\\/.*\\/i/",
+              "value": "/.*/i",
+              "raw": "/.*/i",
               "regex": {
                 "pattern": ".*",
                 "flags": "i"
