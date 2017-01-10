@@ -6,7 +6,7 @@ let pp = Parser.prototype;
 pp.estreeParseRegExpLiteral = function ({ pattern, flags }) {
   let regex = null;
   try {
-    regex = new RegExp(`/${pattern}/${flags}`);
+    regex = new RegExp(pattern, flags);
   } catch (e) {
     // In environments that don't support these flags value will
     // be null as the regex can't be represented natively.
