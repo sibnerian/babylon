@@ -25,7 +25,12 @@ module.exports = function runFixtureTests(fixturesPath, parseFunction) {
 function save(test, ast) {
   delete ast.tokens;
   if (!ast.comments.length) delete ast.comments;
+
+  // Ensure that RegExp are serialized as strings
+  const toJSON = RegExp.prototype.toJSON;
+  RegExp.prototype.toJSON = RegExp.prototype.toString;
   require("fs").writeFileSync(test.expect.loc, JSON.stringify(ast, null, "  "));
+  RegExp.prototype.toJSON = toJSON;
 }
 
 function runTest(test, parseFunction) {
@@ -69,7 +74,8 @@ function runTest(test, parseFunction) {
 }
 
 function ppJSON(v) {
-  return v instanceof RegExp ? v.toString() : JSON.stringify(v, null, 2);
+  v = v instanceof RegExp ? v.toString() : v;
+  return JSON.stringify(v, null, 2);
 }
 
 function addPath(str, pt) {
@@ -81,20 +87,20 @@ function addPath(str, pt) {
 }
 
 function misMatch(exp, act) {
-  if (!exp || !act || (typeof exp != "object") || (typeof act != "object")) {
-    if (exp !== act && typeof exp != "function")
-      return ppJSON(exp) + " !== " + ppJSON(act);
-  } else if (exp instanceof RegExp || act instanceof RegExp) {
+  if (exp instanceof RegExp || act instanceof RegExp) {
     var left = ppJSON(exp), right = ppJSON(act);
     if (left !== right) return left + " !== " + right;
-  } else if (exp.splice) {
-    if (!act.slice) return ppJSON(exp) + " != " + ppJSON(act);
+  } else if (Array.isArray(exp)) {
+    if (!Array.isArray(act)) return ppJSON(exp) + " != " + ppJSON(act);
     if (act.length != exp.length) return "array length mismatch " + exp.length + " != " + act.length;
     for (var i = 0; i < act.length; ++i) {
       var mis = misMatch(exp[i], act[i]);
       if (mis) return addPath(mis, i);
     }
-  } else {
+  } else if (!exp || !act || (typeof exp != "object") || (typeof act != "object")) {
+    if (exp !== act && typeof exp != "function")
+      return ppJSON(exp) + " !== " + ppJSON(act);
+  } else  {
     for (var prop in exp) {
       var mis = misMatch(exp[prop], act[prop]);
       if (mis) return addPath(mis, prop);

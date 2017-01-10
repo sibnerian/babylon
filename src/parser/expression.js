@@ -33,21 +33,8 @@ pp.checkPropClash = function (prop, propHash) {
   if (prop.computed) return;
 
   const key = prop.key;
-  let name;
-  switch (key.type) {
-    case "Identifier":
-      name = key.name;
-      break;
-
-    case "StringLiteral":
-    case "NumericLiteral":
-      name = String(key.value);
-      break;
-
-    // istanbul ignore next: non-computed property keys are always one of the above
-    default:
-      return;
-  }
+  // It is either an Identifier or a String/NumericLiteral
+  const name = key.type === "Identifier" ? key.name : String(key.value);
 
   if (name === "__proto__" && !prop.kind) {
     if (propHash.proto) this.raise(key.start, "Redefinition of __proto__ property");
