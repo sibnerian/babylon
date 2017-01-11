@@ -1,7 +1,7 @@
 import { types as tt } from "../tokenizer/types";
 import Parser from "../parser";
 
-let pp = Parser.prototype;
+const pp = Parser.prototype;
 
 pp.estreeParseRegExpLiteral = function ({ pattern, flags }) {
   let regex = null;
@@ -11,7 +11,7 @@ pp.estreeParseRegExpLiteral = function ({ pattern, flags }) {
     // In environments that don't support these flags value will
     // be null as the regex can't be represented natively.
   }
-  let node = this.estreeParseLiteral(regex);
+  const node = this.estreeParseLiteral(regex);
   node.regex = { pattern, flags };
 
   return node;
