@@ -30,13 +30,13 @@ const pp = Parser.prototype;
 // strict mode, init properties are also not allowed to be repeated.
 
 pp.checkPropClash = function (prop, propHash) {
-  if (prop.computed) return;
+  if (prop.computed || prop.kind) return;
 
   const key = prop.key;
   // It is either an Identifier or a String/NumericLiteral
   const name = key.type === "Identifier" ? key.name : String(key.value);
 
-  if (name === "__proto__" && !prop.kind) {
+  if (name === "__proto__") {
     if (propHash.proto) this.raise(key.start, "Redefinition of __proto__ property");
     propHash.proto = true;
   }
@@ -795,25 +795,31 @@ pp.parseObj = function (isPattern, refShorthandDefaultPos) {
   return this.finishNode(node, isPattern ? "ObjectPattern" : "ObjectExpression");
 };
 
-pp.parseObjPropValue = function (prop, startPos, startLoc, isGenerator, isAsync, isPattern, refShorthandDefaultPos) {
+pp.isGetterOrSetterMethod = function (prop, isPattern) {
+  return !isPattern &&
+    !prop.computed &&
+    prop.key.type === "Identifier" &&
+    (prop.key.name === "get" || prop.key.name === "set") &&
+    !this.match(tt.colon) && // { get: 1 }
+    !this.match(tt.comma) && // shorthand property
+    !this.match(tt.braceR); // method get() or set()
+};
+
+pp.parseObjectMethod = function (prop, isGenerator, isAsync, isPattern) {
   if (isAsync || isGenerator || this.match(tt.parenL)) {
     if (isPattern) this.unexpected();
     prop.kind = "method";
     prop.method = true;
     this.parseMethod(prop, isGenerator, isAsync);
+
     return this.finishNode(prop, "ObjectMethod");
   }
 
-  if (this.eat(tt.colon)) {
-    prop.value = isPattern ? this.parseMaybeDefault(this.state.start, this.state.startLoc) : this.parseMaybeAssign(false, refShorthandDefaultPos);
-    return this.finishNode(prop, "ObjectProperty");
-  }
-
-  if (!isPattern && !prop.computed && prop.key.type === "Identifier" && (prop.key.name === "get" || prop.key.name === "set") && (!this.match(tt.comma) && !this.match(tt.braceR))) {
+  if (this.isGetterOrSetterMethod(prop, isPattern)) {
     if (isGenerator || isAsync) this.unexpected();
     prop.kind = prop.key.name;
     this.parsePropertyName(prop);
-    this.parseMethod(prop, false);
+    this.parseMethod(prop);
     const paramCount = prop.kind === "get" ? 0 : 1;
     if (prop.params.length !== paramCount) {
       const start = prop.start;
@@ -823,7 +829,16 @@ pp.parseObjPropValue = function (prop, startPos, startLoc, isGenerator, isAsync,
         this.raise(start, "setter should have exactly one param");
       }
     }
+
     return this.finishNode(prop, "ObjectMethod");
+  }
+};
+
+pp.parseObjectProperty = function (prop, startPos, startLoc, isPattern, refShorthandDefaultPos) {
+  if (this.eat(tt.colon)) {
+    prop.value = isPattern ? this.parseMaybeDefault(this.state.start, this.state.startLoc) : this.parseMaybeAssign(false, refShorthandDefaultPos);
+
+    return this.finishNode(prop, "ObjectProperty");
   }
 
   if (!prop.computed && prop.key.type === "Identifier") {
@@ -838,12 +853,20 @@ pp.parseObjPropValue = function (prop, startPos, startLoc, isGenerator, isAsync,
     } else {
       prop.value = prop.key.__clone();
     }
-
     prop.shorthand = true;
+
     return this.finishNode(prop, "ObjectProperty");
   }
+};
 
-  this.unexpected();
+pp.parseObjPropValue = function (prop, startPos, startLoc, isGenerator, isAsync, isPattern, refShorthandDefaultPos) {
+  const node =
+    this.parseObjectMethod(prop, isGenerator, isAsync, isPattern) ||
+    this.parseObjectProperty(prop, startPos, startLoc, isPattern, refShorthandDefaultPos);
+
+  if (!node) this.unexpected();
+
+  return node;
 };
 
 pp.parsePropertyName = function (prop) {
@@ -878,7 +901,7 @@ pp.parseMethod = function (node, isGenerator, isAsync) {
   this.initFunction(node, isAsync);
   this.expect(tt.parenL);
   node.params = this.parseBindingList(tt.parenR);
-  node.generator = isGenerator;
+  node.generator = Boolean(isGenerator);
   this.parseFunctionBody(node);
   this.state.inMethod = oldInMethod;
   return node;
