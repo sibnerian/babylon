@@ -1,7 +1,7 @@
 var test = require("ava");
 var getFixtures = require("babel-helper-fixtures").multiple;
 
-module.exports = function runFixtureTests(fixturesPath, parseFunction) {
+exports.runFixtureTests = function runFixtureTests(fixturesPath, parseFunction) {
   var fixtures = getFixtures(fixturesPath);
 
   Object.keys(fixtures).forEach(function (name) {
@@ -17,6 +17,32 @@ module.exports = function runFixtureTests(fixturesPath, parseFunction) {
               throw err;
             }
           });
+      });
+    });
+  });
+};
+
+exports.runThrowTestsWithEstree = function runThrowTestsWithEstree(fixturesPath, parseFunction) {
+  var fixtures = getFixtures(fixturesPath);
+
+  Object.keys(fixtures).forEach(function (name) {
+    fixtures[name].forEach(function (testSuite) {
+      testSuite.tests.forEach(function (task) {
+        if (!task.options.throws) return;
+
+        task.options.plugins = task.options.plugins || [];
+        task.options.plugins.push("estree");
+
+        var testFn = task.disabled ? test.skip : test;
+
+        testFn(name + "/" + testSuite.title + "/" + task.title, function () {
+          try {
+            return runTest(task, parseFunction);
+          } catch (err) {
+            err.message = task.actual.loc + ": " + err.message;
+            throw err;
+          }
+        });
       });
     });
   });

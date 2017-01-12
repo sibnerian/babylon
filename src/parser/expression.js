@@ -901,7 +901,7 @@ pp.parseMethod = function (node, isGenerator, isAsync) {
   this.initFunction(node, isAsync);
   this.expect(tt.parenL);
   node.params = this.parseBindingList(tt.parenR);
-  node.generator = Boolean(isGenerator);
+  node.generator = !!isGenerator;
   this.parseFunctionBody(node);
   this.state.inMethod = oldInMethod;
   return node;
