@@ -141,8 +141,7 @@
                       "column": 10
                     }
                   },
-                  "body": [],
-                  "directives": []
+                  "body": []
                 },
                 "expression": false
               }
@@ -150,7 +149,6 @@
           ]
         }
       }
-    ],
-    "directives": []
+    ]
   }
 }

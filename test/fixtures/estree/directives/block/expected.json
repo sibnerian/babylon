@@ -110,11 +110,9 @@
                 "raw": "\"use strict\""
               }
             }
-          ],
-          "directives": []
+          ]
         }
       }
-    ],
-    "directives": []
+    ]
   }
 }

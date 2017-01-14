@@ -7,7 +7,7 @@ exports.runFixtureTests = function runFixtureTests(fixturesPath, parseFunction) 
   Object.keys(fixtures).forEach(function (name) {
     fixtures[name].forEach(function (testSuite) {
       testSuite.tests.forEach(function (task) {
-        var testFn = task.disabled ? test.skip : test;
+        var testFn = task.disabled ? test.skip : task.options.only ? test.only : test;
 
         testFn(name + "/" + testSuite.title + "/" + task.title, function () {
             try {
@@ -33,7 +33,7 @@ exports.runThrowTestsWithEstree = function runThrowTestsWithEstree(fixturesPath,
         task.options.plugins = task.options.plugins || [];
         task.options.plugins.push("estree");
 
-        var testFn = task.disabled ? test.skip : test;
+        var testFn = task.disabled ? test.skip : task.options.only ? test.only : test;
 
         testFn(name + "/" + testSuite.title + "/" + task.title, function () {
           try {

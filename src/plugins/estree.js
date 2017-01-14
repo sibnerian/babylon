@@ -25,6 +25,20 @@ pp.estreeParseLiteral = function (value) {
   return node;
 };
 
+pp.directiveToStmt = function (directive) {
+  const directiveLiteral = directive.value;
+
+  const stmt = this.startNodeAt(directive.start, directive.loc.start);
+  const expression = this.startNodeAt(directiveLiteral.start, directiveLiteral.loc.start);
+
+  expression.value = directiveLiteral.value;
+  expression.raw = directiveLiteral.extra.raw;
+
+  stmt.expression = this.finishNodeAt(expression, "Literal", directiveLiteral.end, directiveLiteral.loc.end);
+
+  return this.finishNodeAt(stmt, "ExpressionStatement", directive.end, directive.loc.end);
+};
+
 function isSimpleProperty(node) {
   return node &&
     node.type === "Property" &&
@@ -43,13 +57,32 @@ export default function (instance) {
     };
   });
 
+  instance.extend("checkGetterSetterParamCount", function() {
+    return function (prop) {
+      const paramCount = prop.kind === "get" ? 0 : 1;
+      if (prop.value.params.length !== paramCount) {
+        const start = prop.start;
+        if (prop.kind === "get") {
+          this.raise(start, "getter should have no params");
+        } else {
+          this.raise(start, "setter should have exactly one param");
+        }
+      }
+    };
+  });
+
   instance.extend("checkLVal", function(inner) {
     return function (expr, isBinding, checkClashes, ...args) {
       switch (expr.type) {
         case "ObjectPattern":
-          for (const prop of (expr.properties: Array<Object>)) {
-            this.checkLVal(prop.value, isBinding, checkClashes, "object destructuring pattern");
-          }
+          expr.properties.forEach((prop) => {
+            this.checkLVal(
+              prop.type === "Property" ? prop.value : prop,
+              isBinding,
+              checkClashes,
+              "object destructuring pattern"
+            );
+          });
           break;
         default:
           inner.call(this, expr, isBinding, checkClashes, ...args);
@@ -72,9 +105,40 @@ export default function (instance) {
     };
   });
 
-  instance.extend("isValidDirective", function () {
-    return function () {
+  instance.extend("isStrictBody", function () {
+    return function (node, isExpression) {
+      if (!isExpression && node.body.body.length > 0) {
+        for (const directive of (node.body.body: Array<Object>)) {
+          if (directive.type === "ExpressionStatement" && directive.expression.type === "Literal") {
+            if (directive.expression.value === "use strict") return true;
+          } else {
+            // Break for the first non literal expression
+            break;
+          }
+        }
+      }
+
       return false;
+    };
+  });
+
+  instance.extend("isValidDirective", function () {
+    return function (stmt) {
+      return stmt.type === "ExpressionStatement" &&
+        stmt.expression.type === "Literal" &&
+        typeof stmt.expression.value === "string" &&
+        (!stmt.expression.extra || !stmt.expression.extra.parenthesized);
+    };
+  });
+
+  instance.extend("parseBlockBody", function (inner) {
+    return function (node, ...args) {
+      inner.call(this, node, ...args);
+
+      node.directives.reverse().forEach((directive) => {
+        node.body.unshift(this.directiveToStmt(directive));
+      });
+      delete node.directives;
     };
   });
 

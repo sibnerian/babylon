@@ -748,18 +748,8 @@ pp.parseClassBody = function (node) {
 
     this.parseClassMethod(classBody, method, isGenerator, isAsync);
 
-    // get methods aren't allowed to have any parameters
-    // set methods must have exactly 1 parameter
     if (isGetSet) {
-      const paramCount = method.kind === "get" ? 0 : 1;
-      if (method.params.length !== paramCount) {
-        const start = method.start;
-        if (method.kind === "get") {
-          this.raise(start, "getter should have no params");
-        } else {
-          this.raise(start, "setter should have exactly one param");
-        }
-      }
+      this.checkGetterSetterParamCount(method);
     }
   }
 

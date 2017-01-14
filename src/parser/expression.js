@@ -805,6 +805,20 @@ pp.isGetterOrSetterMethod = function (prop, isPattern) {
     !this.match(tt.braceR); // method get() or set()
 };
 
+// get methods aren't allowed to have any parameters
+// set methods must have exactly 1 parameter
+pp.checkGetterSetterParamCount = function (method) {
+  const paramCount = method.kind === "get" ? 0 : 1;
+  if (method.params.length !== paramCount) {
+    const start = method.start;
+    if (method.kind === "get") {
+      this.raise(start, "getter should have no params");
+    } else {
+      this.raise(start, "setter should have exactly one param");
+    }
+  }
+};
+
 pp.parseObjectMethod = function (prop, isGenerator, isAsync, isPattern) {
   if (isAsync || isGenerator || this.match(tt.parenL)) {
     if (isPattern) this.unexpected();
@@ -820,15 +834,7 @@ pp.parseObjectMethod = function (prop, isGenerator, isAsync, isPattern) {
     prop.kind = prop.key.name;
     this.parsePropertyName(prop);
     this.parseMethod(prop);
-    const paramCount = prop.kind === "get" ? 0 : 1;
-    if (prop.params.length !== paramCount) {
-      const start = prop.start;
-      if (prop.kind === "get") {
-        this.raise(start, "getter should have no params");
-      } else {
-        this.raise(start, "setter should have exactly one param");
-      }
-    }
+    this.checkGetterSetterParamCount(prop);
 
     return this.finishNode(prop, "ObjectMethod");
   }
@@ -916,8 +922,19 @@ pp.parseArrowExpression = function (node, params, isAsync) {
   return this.finishNode(node, "ArrowFunctionExpression");
 };
 
-// Parse function body and check parameters.
+pp.isStrictBody = function (node, isExpression) {
+  if (!isExpression && node.body.directives.length) {
+    for (const directive of (node.body.directives: Array<Object>)) {
+      if (directive.value.value === "use strict") {
+        return true;
+      }
+    }
+  }
 
+  return false;
+};
+
+// Parse function body and check parameters.
 pp.parseFunctionBody = function (node, allowExpression) {
   const isExpression = allowExpression && !this.match(tt.braceL);
 
@@ -942,24 +959,10 @@ pp.parseFunctionBody = function (node, allowExpression) {
   // If this is a strict mode function, verify that argument names
   // are not repeated, and it does not try to bind the words `eval`
   // or `arguments`.
-  let checkLVal = this.state.strict;
-  let isStrict = false;
+  const isStrict = this.isStrictBody(node, isExpression);
+  // Also check when allowExpression === true for arrow functions
+  const checkLVal = this.state.strict || allowExpression || isStrict;
 
-  // arrow function
-  if (allowExpression) checkLVal = true;
-
-  // normal function
-  if (!isExpression && node.body.directives.length) {
-    for (const directive of (node.body.directives: Array<Object>)) {
-      if (directive.value.value === "use strict") {
-        isStrict = true;
-        checkLVal = true;
-        break;
-      }
-    }
-  }
-
-  //
   if (isStrict && node.id && node.id.type === "Identifier" && node.id.name === "yield") {
     this.raise(node.id.start, "Binding yield in strict mode");
   }
