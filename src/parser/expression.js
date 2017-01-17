@@ -1012,14 +1012,13 @@ pp.parseExprListItem = function (allowEmpty, refShorthandDefaultPos) {
 
 pp.parseIdentifier = function (liberal) {
   const node = this.startNode();
+  if (!liberal) {
+    this.checkReservedWord(this.state.value, this.state.start, true, false);
+  }
 
   if (this.match(tt.name)) {
-    if (!liberal) {
-      this.checkReservedWord(this.state.value, this.state.start, false, false);
-    }
-
     node.name = this.state.value;
-  } else if (liberal && this.state.type.keyword) {
+  } else if (this.state.type.keyword) {
     node.name = this.state.type.keyword;
   } else {
     this.unexpected();
